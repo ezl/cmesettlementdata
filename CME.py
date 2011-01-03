@@ -114,6 +114,7 @@ def get_row_type(row):
 if __name__ == "__main__":
     # Settings
     products = None # list of products to get. None for all.
+    # currently not implemented
 
     rows = retrieve_CME_settlement_data()
     date_row = rows[0]
@@ -126,67 +127,73 @@ if __name__ == "__main__":
 
     row_length = max(len(row) for row in data)
 
-    for row in data:
-        row_type = get_row_type(row)
-        if row_type == "HEADER":
-            product = row
-            symbol = product # TODO: wrong.
-            if True:
-                print product
-        elif row_type == "FUT" or row_type == "OPT":
-            # space fill short rows
-            row = row.ljust(row_length)
-            # place a marker if a column is blank
-            row = "".join(["0" if row[i] == " " and i in column_markers else row[i] \
-                           for i in range(len(row))
-                          ]) # I hate myself.  I know there's a better way but
-                             # I don't know what it is.
+    filenamedatestring = datetime.datetime.strptime(settlement_time, "%m/%d/%y %I:%M %p").strftime("%Y%m%d")
+    outputfilepath = "./"
+    outputfiledescription = "_CME_agricultral_settlements"
+    outputfileextension = ".csv"
+    outputfilename = outputfilepath + filenamedatestring + outputfiledescription + outputfileextension
 
-            # F it. Hacky but effective.
-            px_open, px_high, px_low, px_last, px_settle = row.split()[1:6]
-            est_vol, prior_settle, prior_vol, prior_open_interest = row.split()[7:]
-            exp_day = "0" # apparently only daily options have exp days in CME datamine. All others are 0.
+    with open(outputfilename, "w") as f:
+        for row in data:
+            row_type = get_row_type(row)
+            if row_type == "HEADER":
+                product = row
+                symbol = product # TODO: wrong.
+                if True:
+                    print product
+            elif row_type == "FUT" or row_type == "OPT":
+                # space fill short rows
+                row = row.ljust(row_length)
+                # place a marker if a column is blank
+                row = "".join(["0" if row[i] == " " and i in column_markers else row[i] \
+                               for i in range(len(row))
+                              ]) # I hate myself.  I know there's a better way but
+                                 # I don't know what it is.
 
-            # Process this row
-            # http://www.cmegroup.com/market-data/datamine-historical-data/files/EODLayoutGuideCSV.pdf
-            # http://www.cmegroup.com/market-data/datamine-historical-data/endofday.html
-            if row_type == "FUT":
-                exp_month, exp_year = extract_expiration(row) # fut expiration data is stored on each row
-                strike = "0"
-            elif row_type == "OPT":
-                exp_month, exp_year = extract_expiration(product) # opt expiration data is stored in the section heading
-                strike = extract_strike(row)
+                # F it. Hacky but effective.
+                px_open, px_high, px_low, px_last, px_settle = row.split()[1:6]
+                est_vol, prior_settle, prior_vol, prior_open_interest = row.split()[7:]
+                exp_day = "0" # apparently only daily options have exp days in CME datamine. All others are 0.
 
-            if "PUT" in product:
-                fut_opt_indicator = "P"
-            elif "CALL" in product:
-                fut_opt_indicator = "C"
-            else:
-                # for now, assume its a fut.
-                # TODO: Is this a bad assumption?
-                # What are SWP, SWAP, "FUT", "FUTURE", "Future", "Futures".
-                # RATE, SSF, and other unlabeled contract types (e.g. BUTTER)
-                fut_opt_indicator = "F"
+                # Process this row
+                # http://www.cmegroup.com/market-data/datamine-historical-data/files/EODLayoutGuideCSV.pdf
+                # http://www.cmegroup.com/market-data/datamine-historical-data/endofday.html
+                if row_type == "FUT":
+                    exp_month, exp_year = extract_expiration(row) # fut expiration data is stored on each row
+                    strike = "0"
+                elif row_type == "OPT":
+                    exp_month, exp_year = extract_expiration(product) # opt expiration data is stored in the section heading
+                    strike = extract_strike(row)
 
-# required format is [trade_date, symbol, fut_opt_indicator, exp_month, exp_day, exp_year, strike, open, high, low, close, settle, volume, open_interest]
+                if "PUT" in product:
+                    fut_opt_indicator = "P"
+                elif "CALL" in product:
+                    fut_opt_indicator = "C"
+                else:
+                    # for now, assume its a fut.
+                    # TODO: Is this a bad assumption?
+                    # What are SWP, SWAP, "FUT", "FUTURE", "Future", "Futures".
+                    # RATE, SSF, and other unlabeled contract types (e.g. BUTTER)
+                    fut_opt_indicator = "F"
 
-            formatted_row = [settlement_time,
-                             symbol,
-                             fut_opt_indicator,
-                             exp_month,
-                             exp_day,
-                             exp_year,
-                             strike,
-                             px_open,
-                             px_high,
-                             px_low,
-                             px_last,
-                             px_settle,
-                             est_vol,
-                             prior_settle,
-                             prior_vol,
-                             prior_open_interest,
-                             ]
+    # required format is [trade_date, symbol, fut_opt_indicator, exp_month, exp_day, exp_year, strike, open, high, low, close, settle, volume, open_interest]
 
-            print ",".join(formatted_row)
+                formatted_row = [settlement_time,
+                                 symbol,
+                                 fut_opt_indicator,
+                                 exp_month,
+                                 exp_day,
+                                 exp_year,
+                                 strike,
+                                 px_open,
+                                 px_high,
+                                 px_low,
+                                 px_last,
+                                 px_settle,
+                                 est_vol,
+                                 prior_settle,
+                                 prior_vol,
+                                 prior_open_interest,
+                                 ]
 
+                f.write("%s%s" % (",".join(formatted_row), "\n"))
